@@ -38,13 +38,15 @@ void ParticleFilter::init(double x, double y, double theta, double std[]) {
 	std::normal_distribution<double> distribution_y(y, std[1]);
 	std::normal_distribution<double> distribution_theta(theta, std[2]);
 
-	//std::vector<Particle> particles;
+	// Create num_particlese Gaussian distributed particles
+	Particle p;
 	for(int i=0; i<num_particles; i++){
-		particles[i].id = i;
-		particles[i].x = distribution_x(gen); 
-		particles[i].y = distribution_y(gen);
-		particles[i].theta = distribution_theta(gen);
-		particles[i].weight = 1; // uniform distribution
+		p.id = i;
+		p.x = distribution_x(gen); 
+		p.y = distribution_y(gen);
+		p.theta = distribution_theta(gen);
+		p.weight = 1; // uniform distribution
+		particles.push_back(p);
 	}
 }
 
