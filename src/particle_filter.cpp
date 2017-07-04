@@ -28,7 +28,7 @@ void ParticleFilter::init(double x, double y, double theta, double std[]) {
 	// TODO: Add random Gaussian noise to each particle.
 	// NOTE: Consult particle_filter.h for more information about this method (and others in this file).
 
-	int num_particles = 1000; // Number of particles, tunable parameter
+	num_particles = 1000; // Number of particles, tunable parameter
 
 	// initalize a random engine generator
 	std::default_random_engine gen;
@@ -45,9 +45,15 @@ void ParticleFilter::init(double x, double y, double theta, double std[]) {
 		p.x = distribution_x(gen); 
 		p.y = distribution_y(gen);
 		p.theta = distribution_theta(gen);
-		p.weight = 1; // uniform distribution
+		p.weight = 1.0; // uniform distribution
 		particles.push_back(p);
 	}
+
+	// done initializing
+	is_initialized = true;
+
+	std::cout << "Sample of particle, no 0: " << particles[0].x << ", " << particles[0].y << ", " << particles[0].theta << std::endl;
+	std::cout << "Input values: " << x << ", " << y << ", " << theta << std::endl;
 }
 
 void ParticleFilter::prediction(double delta_t, double std_pos[], double velocity, double yaw_rate) {
@@ -59,10 +65,19 @@ void ParticleFilter::prediction(double delta_t, double std_pos[], double velocit
 	// initalize a random engine generator
 	std::default_random_engine gen;
 
-	for(auto p:particles){
-		double xf = p.x + velocity/yaw_rate*(sin(p.theta + yaw_rate*delta_t) - sin(p.theta));
-		double yf = p.y + velocity/yaw_rate*(cos(p.theta) - cos(p.theta + yaw_rate*delta_t)); 	
-		double thetaf = p.theta + yaw_rate*delta_t;
+	double xf,yf;
+	double thetaf;
+	for(auto& p:particles){
+		// avoid division with zero
+		if(fabs(yaw_rate) < 0.001){
+			xf = p.x + velocity*cos(p.theta)*delta_t;
+			yf = p.y + velocity*sin(p.theta)*delta_t;      
+        	} else{
+			xf = p.x + velocity/yaw_rate*(sin(p.theta + yaw_rate*delta_t) - sin(p.theta));
+			yf = p.y + velocity/yaw_rate*(cos(p.theta) - cos(p.theta + yaw_rate*delta_t)); 
+       		}
+		
+		thetaf = p.theta + yaw_rate*delta_t;
 		
 		// Normal (Gaussian) distribution for noise
 		std::normal_distribution<double> distribution_x(xf, std_pos[0]);
@@ -122,6 +137,8 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
 	std::vector<double> senseGlobal_x;
 	std::vector<double> senseGlobal_y;
 	std::vector<int> associated_ids;
+	// reset weights vector
+	weights.clear();
 	for(auto& p:particles){
 		// reset vectors
 		senseGlobal_x.clear();
@@ -160,10 +177,9 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
 				    ((x_observation - x_landmark)*(x_observation - x_landmark)/(std_landmark[0]*std_landmark[0]) + 
 				    (y_observation - y_landmark)*(y_observation - y_landmark)/(std_landmark[1]*std_landmark[1])));
 			p.weight *= w_obsi;
-
-			// Add weight to weight vector (def in particle_filter.h)
-			weights.push_back(w_obsi);
 		}
+		// Add p's weight to weight vector (def in particle_filter.h)
+		weights.push_back(p.weight);
 		// set associations of observations and corresponding closest landmarking IDs for particle p
 		p = SetAssociations(p, associated_ids, senseGlobal_x, senseGlobal_y);		
 	}
@@ -199,7 +215,8 @@ void ParticleFilter::resample() {
 	std::vector<Particle> tempParticles;
 	// Sample num_particles particles from particles vector
 	for(int i=0; i<num_particles; i++){
-		tempParticles.push_back(particles[dist_w(gen)]);	
+		int pout = dist_w(gen);
+		tempParticles.push_back(particles[pout]);	
 	}
 	// set particles vector
 	particles.clear();
